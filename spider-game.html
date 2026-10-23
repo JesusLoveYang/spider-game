@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>和蜘蛛做朋友 · spider</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:"Comic Sans MS","Trebuchet MS",system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:linear-gradient(180deg,#bfe6ff 0%,#e3f4ff 42%,#c9f0c2 100%);
+  min-height:100%;display:flex;flex-direction:column;align-items:center;
+  overflow:hidden;user-select:none;touch-action:manipulation;color:#22303c;
+}
+.cloud{position:absolute;background:#fff;border-radius:50%;opacity:.85;pointer-events:none}
+.cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border-radius:50%}
+.c1{width:90px;height:38px;top:8%;left:6%;animation:float 9s ease-in-out infinite}
+.c1::before{width:48px;height:48px;top:-22px;left:16px}
+.c1::after{width:36px;height:36px;top:-14px;left:50px}
+.c2{width:70px;height:30px;top:16%;right:8%;animation:float 11s ease-in-out infinite reverse}
+.c2::before{width:40px;height:40px;top:-18px;left:12px}
+.c2::after{width:30px;height:30px;top:-12px;left:40px}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+
+.topbar{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:14px 18px;font-size:15px;font-weight:700;z-index:5}
+.stars{background:#fff;border-radius:999px;padding:6px 14px;box-shadow:0 3px 10px rgba(60,110,160,.18);color:#e8912a}
+.title{color:#3a5a78;opacity:.85;font-size:14px;flex:1;text-align:center}
+.mute{background:#fff;border:none;border-radius:999px;width:40px;height:40px;font-size:18px;cursor:pointer;
+  box-shadow:0 3px 10px rgba(60,110,160,.18);transition:transform .1s}
+.mute:active{transform:scale(.92)}
+
+.stage{flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;z-index:3}
+.bubble{min-height:44px;font-size:22px;font-weight:800;color:#3a2e5c;background:#fff;border-radius:16px;
+  padding:8px 20px;margin-bottom:6px;box-shadow:0 6px 18px rgba(60,110,160,.2);opacity:0;
+  transform:translateY(8px) scale(.9);transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap}
+.bubble.show{opacity:1;transform:translateY(0) scale(1)}
+.spider-btn{background:none;border:none;cursor:pointer;width:min(62vw,300px);max-width:300px;padding:0;
+  transition:transform .12s;filter:drop-shadow(0 14px 16px rgba(60,110,160,.28))}
+.spider-btn:active{transform:scale(.94)}
+.spider-btn.happy{animation:bounce .6s ease}
+@keyframes bounce{0%{transform:scale(1) rotate(0)}25%{transform:scale(1.08) rotate(-4deg) translateY(-18px)}
+  50%{transform:scale(1.02) rotate(3deg) translateY(0)}75%{transform:scale(1.05) rotate(-2deg) translateY(-8px)}100%{transform:scale(1) rotate(0)}}
+.leg{transform-origin:100px 100px}
+.spider-btn.happy .leg{animation:legwave .5s ease 2}
+@keyframes legwave{0%,100%{transform:rotate(0)}50%{transform:rotate(9deg)}}
+.hint{font-size:14px;color:#5b7a94;margin-top:6px;opacity:.9;text-align:center}
+
+.bottombar{width:100%;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:14px 14px 24px;z-index:5}
+.btn{border:none;border-radius:16px;padding:14px 20px;font-size:15px;font-weight:800;font-family:inherit;
+  cursor:pointer;box-shadow:0 6px 0 rgba(0,0,0,.12);transition:transform .1s}
+.btn:active{transform:translateY(3px);box-shadow:0 3px 0 rgba(0,0,0,.12)}
+.btn.primary{background:#7c5cff;color:#fff}
+.btn.secondary{background:#fff;color:#4a5b6b}
+
+/* 面板通用 */
+.panel{position:fixed;inset:0;background:linear-gradient(180deg,#e8f6ff,#d4f2cf);display:none;
+  flex-direction:column;align-items:center;justify-content:center;padding:22px;z-index:20;gap:16px}
+.panel.show{display:flex}
+.panel h2{font-size:19px;color:#3a5a78;text-align:center}
+.word-view{display:flex;gap:8px;margin:6px 0}
+.slot{width:52px;height:60px;border-radius:14px;background:#fff;border:3px dashed #a9c6da;display:flex;
+  align-items:center;justify-content:center;font-size:34px;font-weight:900;color:#4a3a86;transition:.15s}
+.slot.filled{border-style:solid;border-color:#7c5cff;background:#f0ecff;animation:pop .3s}
+@keyframes pop{0%{transform:scale(.6)}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+.tiles{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:340px;margin-top:6px}
+.tile{width:54px;height:54px;border-radius:14px;background:#ffd54a;border:none;cursor:pointer;font-size:28px;
+  font-weight:900;color:#5a4a00;font-family:inherit;box-shadow:0 5px 0 #d9ae1f;transition:transform .1s;user-select:none}
+.tile:active{transform:translateY(3px);box-shadow:0 2px 0 #d9ae1f}
+.tile.shake{animation:shake .4s}
+.tile.used{visibility:hidden}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+/* 找不同 */
+.bug-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:min(88vw,330px)}
+.bug{background:rgba(255,255,255,.55);border:2px solid rgba(140,170,200,.35);border-radius:16px;
+  padding:4px;cursor:pointer;transition:transform .1s;aspect-ratio:1}
+.bug:active{transform:scale(.94)}
+.bug svg{width:100%;height:100%;display:block}
+.bug.shake{animation:shake .4s}
+.bug.found{border-color:#4cc38a;background:rgba(76,195,138,.25);animation:pop .4s}
+.find-msg{min-height:26px;font-size:16px;font-weight:700;color:#3a5a78;text-align:center}
+
+.burst{position:fixed;pointer-events:none;z-index:30;font-size:22px;animation:burstUp .8s ease-out forwards}
+@keyframes burstUp{0%{opacity:1;transform:translate(0,0) scale(.5)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.3)}}
+.confetti{position:fixed;top:-12px;width:10px;height:16px;z-index:25;pointer-events:none;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.9}}
+</style>
+</head>
+<body>
+<div class="cloud c1"></div><div class="cloud c2"></div>
+
+<div class="topbar">
+  <div class="stars" id="stars">⭐ 0</div>
+  <div class="title">和蜘蛛做朋友</div>
+  <button class="mute" id="muteBtn" aria-label="声音开关">🔊</button>
+</div>
+
+<div class="stage" id="stage">
+  <div class="bubble" id="bubble">spider!</div>
+  <button class="spider-btn" id="spiderBtn" aria-label="点蜘蛛听发音">
+    <svg viewBox="0 0 200 200" width="100%">
+      <g class="legs" stroke="#3a2e5c" stroke-width="7" stroke-linecap="round" fill="none">
+        <path class="leg" d="M92 104 C70 96 52 78 34 60"/><path class="leg" d="M88 116 C64 114 44 108 22 100"/>
+        <path class="leg" d="M88 128 C64 138 44 150 26 166"/><path class="leg" d="M92 138 C74 150 60 166 48 182"/>
+        <path class="leg" d="M108 104 C130 96 148 78 166 60"/><path class="leg" d="M112 116 C136 114 156 108 178 100"/>
+        <path class="leg" d="M112 128 C136 138 156 150 174 166"/><path class="leg" d="M108 138 C126 150 140 166 152 182"/>
+      </g>
+      <ellipse cx="100" cy="120" rx="46" ry="40" fill="#4b3a7a"/>
+      <ellipse cx="100" cy="112" rx="34" ry="30" fill="#5d4a94"/>
+      <ellipse cx="100" cy="86" rx="40" ry="36" fill="#5d4a94"/>
+      <circle cx="84" cy="82" r="15" fill="#fff"/><circle cx="116" cy="82" r="15" fill="#fff"/>
+      <circle cx="87" cy="84" r="7.5" fill="#23202e"/><circle cx="113" cy="84" r="7.5" fill="#23202e"/>
+      <circle cx="90" cy="86" r="2.4" fill="#fff"/><circle cx="116" cy="86" r="2.4" fill="#fff"/>
+      <circle cx="70" cy="104" r="7" fill="#ff8fb1" opacity=".6"/><circle cx="130" cy="104" r="7" fill="#ff8fb1" opacity=".6"/>
+      <path d="M92 100 Q100 108 108 100" stroke="#2b2038" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </svg>
+  </button>
+  <div class="hint">👆 点蜘蛛 → 听它说 <b>spider</b>　·　首次点击后开始有声音</div>
+</div>
+
+<div class="bottombar">
+  <button class="btn secondary" id="sayBtn">🔊 再听一遍</button>
+  <button class="btn primary" id="spellBtn">🔤 拼一拼</button>
+  <button class="btn primary" id="findBtn" style="background:#ff8f3f">🔍 找不同</button>
+</div>
+
+<!-- 拼词面板 -->
+<div class="panel" id="panel">
+  <h2>按顺序拼出 <span style="color:#6a4cff">spider</span></h2>
+  <div class="word-view" id="slots"></div>
+  <div class="tiles" id="tiles"></div>
+  <button class="btn secondary" id="againBtn">🔄 重新来</button>
+  <button class="btn primary" id="backBtn">← 回到蜘蛛</button>
+</div>
+
+<!-- 找不同面板 -->
+<div class="panel" id="findPanel">
+  <h2>找出那只不一样的小虫子 🔍</h2>
+  <div class="bug-grid" id="bugGrid"></div>
+  <div class="find-msg" id="findMsg"></div>
+  <button class="btn primary" id="findBackBtn">← 回到蜘蛛</button>
+</div>
+
+<script>
+(function(){
+  const $=s=>document.querySelector(s);
+  const WORD=['s','p','i','d','e','r'];
+  const DISTRACT=['a','o','m'];
+  let stars=0;
+
+  /* ================= 声音引擎（Web Audio 实时合成，无外部文件） ================= */
+  let ac=null, master=null, musicGain=null, muted=false, musicTimer=null;
+  function audioSupported(){ return ('AudioContext' in window)||('webkitAudioContext' in window); }
+  function initAudio(){
+    if(ac||!audioSupported()) return;
+    try{
+      ac=new (window.AudioContext||window.webkitAudioContext)();
+      master=ac.createGain(); master.gain.value=0.9; master.connect(ac.destination);
+      musicGain=ac.createGain(); musicGain.gain.value=1; musicGain.connect(master);
+      startMusic();
+    }catch(e){ ac=null; }
+  }
+  function setMuted(m){
+    muted=m;
+    if(master) master.gain.setTargetAtTime(m?0:0.9, ac.currentTime, 0.02);
+    $('#muteBtn').textContent=m?'🔇':'🔊';
+  }
+  function beep(freq,dur=0.15,type='sine',vol=0.12,when=0){
+    if(!ac||muted) return;
+    const t=ac.currentTime+when;
+    const o=ac.createOscillator(), g=ac.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(0,t);
+    g.gain.linearRampToValueAtTime(vol,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t+dur+0.03);
+  }
+  function sPop(){ beep(880,0.12,'sine',0.10); beep(1320,0.10,'sine',0.05,0.05); }
+  function sCorrect(){ [523,659,784,1047].forEach((f,i)=>beep(f,0.18,'triangle',0.10,i*0.08)); }
+  function sWrong(){ beep(190,0.16,'sawtooth',0.08); beep(140,0.22,'sawtooth',0.08,0.11); }
+  function sWin(){ [523,659,784,1047,1319].forEach((f,i)=>beep(f,0.22,'triangle',0.11,i*0.09)); }
+
+  // 轻柔背景旋律（五声音阶循环，低音量）
+  function startMusic(){
+    if(!ac) return;
+    const scale=[523.25,587.33,659.25,783.99,880.00,783.99,659.25,587.33];
+    let i=0;
+    function tick(){
+      if(ac && !muted){
+        const f=scale[i%scale.length];
+        const t=ac.currentTime;
+        const o=ac.createOscillator(), g=ac.createGain();
+        o.type='sine'; o.frequency.value=f;
+        g.gain.setValueAtTime(0,t);
+        g.gain.linearRampToValueAtTime(0.045,t+0.08);
+        g.gain.exponentialRampToValueAtTime(0.0001,t+0.7);
+        o.connect(g); g.connect(musicGain);
+        o.start(t); o.stop(t+0.75);
+        // 偶尔加一个低八度伴音
+        if(i%4===0){
+          const o2=ac.createOscillator(), g2=ac.createGain();
+          o2.type='triangle'; o2.frequency.value=f/2;
+          g2.gain.setValueAtTime(0,t); g2.gain.linearRampToValueAtTime(0.02,t+0.1);
+          g2.gain.exponentialRampToValueAtTime(0.0001,t+0.9);
+          o2.connect(g2); g2.connect(musicGain); o2.start(t); o2.stop(t+0.95);
+        }
+      }
+      i++;
+      musicTimer=setTimeout(tick,430);
+    }
+    tick();
+  }
+  $('#muteBtn').addEventListener('click',()=>{ initAudio(); setMuted(!muted); });
+
+  /* ================= 语音 ================= */
+  function speak(text,{rate=0.8,pitch=1.15}={}){
+    if(!('speechSynthesis' in window)) return;
+    try{
+      speechSynthesis.cancel();
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang='en-US'; u.rate=rate; u.pitch=pitch; u.volume=1;
+      const vs=speechSynthesis.getVoices();
+      const en=vs.find(v=>/en-US/i.test(v.lang)&&/female|samantha|zira|google/i.test(v.name))||vs.find(v=>/en/i.test(v.lang));
+      if(en) u.voice=en;
+      speechSynthesis.speak(u);
+    }catch(e){}
+  }
+
+  /* ================= 星星 / 特效 ================= */
+  function updateStars(){ $('#stars').textContent='⭐ '+stars; }
+  function burst(x,y,n=6){
+    const em=['⭐','✨','🌟','💛'];
+    for(let i=0;i<n;i++){
+      const s=document.createElement('div'); s.className='burst'; s.textContent=em[i%em.length];
+      s.style.left=x+'px'; s.style.top=y+'px';
+      s.style.setProperty('--dx',(Math.random()*160-80)+'px');
+      s.style.setProperty('--dy',(-60-Math.random()*80)+'px');
+      document.body.appendChild(s); setTimeout(()=>s.remove(),800);
+    }
+  }
+  function confetti(){
+    const cols=['#7c5cff','#ffd54a','#ff8fb1','#5ad1a0','#4fc3f7'];
+    for(let i=0;i<40;i++){
+      const c=document.createElement('div'); c.className='confetti';
+      c.style.left=Math.random()*100+'vw'; c.style.background=cols[i%cols.length];
+      c.style.animationDuration=(1.4+Math.random()*1.2)+'s'; c.style.animationDelay=(Math.random()*.4)+'s';
+      document.body.appendChild(c); setTimeout(()=>c.remove(),3000);
+    }
+  }
+  let bubbleT=null;
+  function showBubble(txt,ms=1100){
+    const b=$('#bubble'); b.textContent=txt; b.classList.add('show');
+    clearTimeout(bubbleT); bubbleT=setTimeout(()=>b.classList.remove('show'),ms);
+  }
+
+  /* ================= 点蜘蛛 ================= */
+  const spiderBtn=$('#spiderBtn');
+  spiderBtn.addEventListener('click',()=>{
+    initAudio();
+    spiderBtn.classList.remove('happy'); void spiderBtn.offsetWidth; spiderBtn.classList.add('happy');
+    speak('spider'); sPop();
+    showBubble('spider! 🕷️');
+    stars++; updateStars();
+    const r=spiderBtn.getBoundingClientRect(); burst(r.left+r.width/2,r.top+r.height/2);
+    setTimeout(()=>spiderBtn.classList.remove('happy'),700);
+  });
+  $('#sayBtn').addEventListener('click',()=>{ initAudio(); speak('spider'); sPop(); showBubble('spider! 🕷️'); });
+
+  /* ================= 拼词 ================= */
+  let index=0;
+  function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+  function buildSpell(){
+    index=0;
+    const slots=$('#slots'); slots.innerHTML='';
+    WORD.forEach((_,i)=>{const d=document.createElement('div');d.className='slot';slots.appendChild(d);});
+    const tiles=$('#tiles'); tiles.innerHTML='';
+    shuffle([...WORD,...DISTRACT]).forEach(ch=>{
+      const b=document.createElement('button'); b.className='tile'; b.textContent=ch;
+      b.addEventListener('click',()=>onTile(ch,b)); tiles.appendChild(b);
+    });
+  }
+  function onTile(ch,btn){
+    if(btn.classList.contains('used')) return;
+    if(ch===WORD[index]){
+      const slot=$('#slots').children[index];
+      slot.textContent=ch; slot.classList.add('filled');
+      btn.classList.add('used');
+      beep(660,0.12,'triangle',0.09);
+      index++;
+      if(index===WORD.length){
+        setTimeout(()=>{
+          speak('spider'); sWin(); showBubble('太棒了！spider! 🎉');
+          stars+=3; updateStars(); confetti();
+          const r=$('#slots').getBoundingClientRect(); burst(r.left+r.width/2,r.top,10);
+          setTimeout(buildSpell,1600);
+        },160);
+      }
+    }else{
+      btn.classList.add('shake'); setTimeout(()=>btn.classList.remove('shake'),400);
+      sWrong(); speak('try again',{rate:0.85});
+    }
+  }
+  $('#spellBtn').addEventListener('click',()=>{ initAudio(); buildSpell(); $('#panel').classList.add('show'); speak('spider'); });
+  $('#againBtn').addEventListener('click',buildSpell);
+  $('#backBtn').addEventListener('click',()=>$('#panel').classList.remove('show'));
+
+  /* ================= 找不同虫子 ================= */
+  const BASE=['#5d4a94','#4b3a7a','#6a5aa8'];
+  const ODD=['#ff6b6b','#4cc38a','#ffb020','#38bdf8','#f472b6'];
+  let findLocked=false;
+  function bugSVG(color){
+    return `<svg viewBox="0 0 100 100" aria-hidden="true">
+      <g stroke="#2b2340" stroke-width="3.5" stroke-linecap="round" fill="none">
+        <path d="M42 52 C30 48 20 38 12 28"/><path d="M40 58 C26 56 14 52 6 48"/>
+        <path d="M40 64 C26 70 14 78 6 86"/><path d="M42 70 C34 78 26 88 20 94"/>
+        <path d="M58 52 C70 48 80 38 88 28"/><path d="M60 58 C74 56 86 52 94 48"/>
+        <path d="M60 64 C74 70 86 78 94 86"/><path d="M58 70 C66 78 74 88 80 94"/>
+      </g>
+      <circle cx="50" cy="62" r="22" fill="${color}"/>
+      <circle cx="50" cy="42" r="18" fill="${color}"/>
+      <circle cx="43" cy="40" r="6.5" fill="#fff"/><circle cx="57" cy="40" r="6.5" fill="#fff"/>
+      <circle cx="44" cy="41" r="2.8" fill="#23202e"/><circle cx="56" cy="41" r="2.8" fill="#23202e"/>
+      <circle cx="46" cy="43" r="1" fill="#fff"/><circle cx="58" cy="43" r="1" fill="#fff"/>
+    </svg>`;
+  }
+  function newRound(){
+    findLocked=false;
+    $('#findMsg').textContent='';
+    const grid=$('#bugGrid'); grid.innerHTML='';
+    const n=9, oddIdx=Math.floor(Math.random()*n);
+    const base=BASE[Math.floor(Math.random()*BASE.length)];
+    let odd; do{ odd=ODD[Math.floor(Math.random()*ODD.length)]; }while(odd.toLowerCase()===base.toLowerCase());
+    for(let i=0;i<n;i++){
+      const b=document.createElement('button'); b.className='bug';
+      b.innerHTML=bugSVG(i===oddIdx?odd:base);
+      b.addEventListener('click',()=>onBug(b,i===oddIdx,b));
+      grid.appendChild(b);
+    }
+  }
+  function onBug(btn,isOdd){
+    if(findLocked) return;
+    if(isOdd){
+      findLocked=true;
+      btn.classList.add('found');
+      sCorrect(); speak('spider'); showBubble('找到啦！spider 🎉');
+      stars+=2; updateStars(); confetti();
+      const r=btn.getBoundingClientRect(); burst(r.left+r.width/2,r.top+r.height/2,8);
+      $('#findMsg').textContent='✅ 正确！再来一局…';
+      setTimeout(newRound,1300);
+    }else{
+      btn.classList.add('shake'); setTimeout(()=>btn.classList.remove('shake'),400);
+      sWrong(); $('#findMsg').textContent='再看看～';
+    }
+  }
+  $('#findBtn').addEventListener('click',()=>{ initAudio(); newRound(); $('#findPanel').classList.add('show'); });
+  $('#findBackBtn').addEventListener('click',()=>$('#findPanel').classList.remove('show'));
+
+  updateStars();
+})();
+</script>
+</body>
+</html>
