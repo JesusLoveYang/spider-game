@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>正方体 11 种展开图 · 折叠动画</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--card); color:var(--foreground); font-family:system-ui,"Microsoft YaHei",sans-serif; padding:16px; }
+h2 { font-size:16px; margin-bottom:4px; }
+.sub { font-size:12px; color:var(--muted-foreground); margin-bottom:12px; line-height:1.6; }
+.grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; max-width:520px; }
+.net-item { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:6px; cursor:pointer; text-align:center; transition:.15s; }
+.net-item:hover { border-color:var(--accent); }
+.net-item.active { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
+.net-item svg { width:100%; height:54px; }
+.net-item rect { fill:var(--card); stroke:var(--border); stroke-width:1.5; rx:2; }
+.net-item.active rect { fill:var(--accent); opacity:.18; }
+.net-item .label { font-size:10px; color:var(--muted-foreground); margin-top:2px; }
+.stage { margin-top:16px; display:flex; align-items:flex-start; gap:20px; flex-wrap:wrap; }
+.scene { width:240px; height:240px; position:relative; perspective:760px; touch-action:none; cursor:grab; flex-shrink:0;
+  background:var(--card); border:1px solid var(--border); border-radius:10px; }
+.scene:active { cursor:grabbing; }
+.holder { position:absolute; left:50%; top:50%; width:0; height:0; transform-style:preserve-3d; }
+.face { position:absolute; width:60px; height:60px; left:0; top:0; border:2px solid var(--accent);
+  background:var(--accent); opacity:.16; display:flex; align-items:center; justify-content:center;
+  font-size:14px; font-weight:700; color:var(--foreground); backface-visibility:visible;
+  transition:filter .15s; }
+.face.glow { filter:brightness(1.5); border-width:3px; z-index:5; }
+.controls { flex:1; min-width:240px; }
+.controls button { background:var(--accent); color:var(--card); border:none; border-radius:6px; padding:8px 14px; font-size:13px; cursor:pointer; margin:0 8px 8px 0; }
+.controls button:disabled { opacity:.4; cursor:default; }
+.controls button.secondary { background:var(--border); color:var(--foreground); }
+.hl-toggle { display:inline-flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; user-select:none; margin-bottom:10px; }
+.info { font-size:12px; color:var(--muted-foreground); line-height:1.7; margin-top:6px; }
+.tag { display:inline-block; background:var(--border); border-radius:4px; padding:1px 7px; font-size:11px; }
+.legend { margin-top:10px; display:flex; gap:14px; flex-wrap:wrap; }
+.legend .item { display:flex; align-items:center; gap:6px; font-size:12px; }
+.legend .swatch { width:14px; height:14px; border-radius:3px; border:2px solid; }
+</style>
+</head>
+<body>
+<h2>正方体展开图 · 11 种</h2>
+<div class="sub">已用程序枚举全部 6 格多联骨牌(35 种)并验证可折叠者恰好 11 种；折叠计算同样经过程序验证。
+  点缩略图选一种 → 点「播放」看折叠。拖拽 3D 区可旋转，<b>悬停某面</b>会高亮它的相对面。</div>
+<div class="grid" id="grid"></div>
+<div class="stage">
+  <div class="scene" id="scene"><div class="holder" id="holder"></div></div>
+  <div class="controls">
+    <button id="btnPlay">▶ 播放折叠</button>
+    <button id="btnFold" class="secondary">折叠</button>
+    <button id="btnUnfold" class="secondary">展开</button>
+    <button id="btnReset" class="secondary">↺ 复位</button>
+    <label class="hl-toggle"><input type="checkbox" id="hlBox" checked> 高亮相对面（同色=对面）</label>
+    <div class="info" id="info"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+</div>
+<script>
+const S=60;
+const nets=[
+  [[0,0],[0,1],[0,2],[1,1],[2,1],[3,1]],
+  [[0,0],[0,1],[0,2],[1,2],[1,3],[1,4]],
+  [[0,0],[0,1],[1,1],[1,2],[1,3],[2,1]],
+  [[0,0],[0,1],[1,1],[1,2],[1,3],[2,2]],
+  [[0,0],[0,1],[1,1],[1,2],[1,3],[2,3]],
+  [[0,0],[0,1],[1,1],[1,2],[2,1],[3,1]],
+  [[0,0],[0,1],[1,1],[1,2],[2,2],[2,3]],
+  [[0,0],[0,1],[1,1],[2,1],[2,2],[3,1]],
+  [[0,0],[0,1],[1,1],[2,1],[3,1],[3,2]],
+  [[0,1],[1,0],[1,1],[1,2],[1,3],[2,1]],
+  [[0,1],[1,0],[1,1],[1,2],[1,3],[2,2]],
+];
+// ---- 3D（与 Python 验证脚本逐行对应）----
+function matmul(A,B){const R=[[0,0,0],[0,0,0],[0,0,0]];for(let i=0;i<3;i++)for(let j=0;j<3;j++){let v=0;for(let k=0;k<3;k++)v+=A[i][k]*B[k][j];R[i][j]=v;}return R;}
+function matvec(M,v){return [M[0][0]*v[0]+M[0][1]*v[1]+M[0][2]*v[2],M[1][0]*v[0]+M[1][1]*v[1]+M[1][2]*v[2],M[2][0]*v[0]+M[2][1]*v[1]+M[2][2]*v[2]];}
+function add(a,b){return[a[0]+b[0],a[1]+b[1],a[2]+b[2]];}
+function rotAxis(a,ang){const c=Math.cos(ang),s=Math.sin(ang),[x,y,z]=a,k=1-c;return[[c+x*x*k,x*y*k-z*s,x*z*k+y*s],[y*x*k+z*s,c+y*y*k,y*z*k-x*s],[z*x*k-y*s,z*y*k+x*s,c+z*z*k]];}
+function affineComp(R1,t1,R2,t2){return[matmul(R1,R2),add(matvec(R1,t2),t1)];}
+function rotAbout(axis,h,ang){const R=rotAxis(axis,ang);return[R,[h[0]-matvec(R,h)[0],h[1]-matvec(R,h)[1],h[2]-matvec(R,h)[2]]];}
+const ID=()=>[[1,0,0],[0,1,0],[0,0,1]];
+const dirFlat={R:[1,0],L:[-1,0],U:[0,-1],D:[0,1]};
+const dirAxis={R:[0,1,0],L:[0,1,0],U:[1,0,0],D:[1,0,0]};
+const dirSign={R:-1,L:1,U:-1,D:1};
+function fold(net,p){
+  const setc=new Set(net.map(c=>c.join(',')));
+  const base=net[0].join(',');
+  const parent={},dirv={},order=[];
+  parent[base]=null;const q=[base];
+  const step={R:[0,1],L:[0,-1],U:[-1,0],D:[1,0]};
+  while(q.length){const cur=q.shift();order.push(cur);const[r,c]=cur.split(',').map(Number);
+    for(const d of ['R','L','U','D']){const dr=step[d];const key=(r+dr[0])+','+(c+dr[1]);
+      if(setc.has(key)&&!(key in parent)){parent[key]=cur;dirv[key]=d;q.push(key);}}}
+  const frame={};const[r0,c0]=base.split(',').map(Number);
+  frame[base]=[ID(),[c0*S,r0*S,0]];
+  for(const cur of order){if(cur===base)continue;
+    const[Mpar,Tpar]=frame[parent[cur]];const d=dirv[cur];const df=dirFlat[d];
+    const h=[S/2*df[0],S/2*df[1],0];
+    const[Rh,th]=rotAbout(dirAxis[d],h,dirSign[d]*p*Math.PI/2);
+    const M2=matmul(Rh,ID()),T2=add(matvec(Rh,[S*df[0],S*df[1],0]),th);
+    frame[cur]=affineComp(Mpar,Tpar,M2,T2);}
+  return frame;
+}
+function mat3d(M,T){const m=v=>(+v).toFixed(4);
+  return `matrix3d(${m(M[0][0])},${m(M[1][0])},${m(M[2][0])},0,${m(M[0][1])},${m(M[1][1])},${m(M[2][1])},0,${m(M[0][2])},${m(M[1][2])},${m(M[2][2])},0,${m(T[0])},${m(T[1])},${m(T[2])},1)`;}
+// 相对面配对（p=1 时法向量相反的两面）
+function oppositePairs(net){
+  const fr=fold(net,1);
+  const ns=net.map((c,fi)=>({fi,n:matvec(fr[c.join(',')][0],[0,0,1]).map(x=>Math.round(x*100)/100)}));
+  const pairColor={};let ci=0;const pairs=[];
+  for(let i=0;i<ns.length;i++){if(pairColor[i]!==undefined)continue;
+    const oi=ns.findIndex((o,j)=>j!==i&&o.n[0]===-ns[i].n[0]&&o.n[1]===-ns[i].n[1]&&o.n[2]===-ns[i].n[2]);
+    pairColor[i]=ci;pairColor[oi]=ci;pairs.push([i+1,oi+1]);ci++;}
+  return{pairColor,pairs};
+}
+const PAIR=[
+  {bg:'rgba(229,72,77,.28)',bd:'#e5484d',tx:'#e5484d',nm:'红'},
+  {bg:'rgba(48,164,108,.30)',bd:'#30a46c',tx:'#30a46c',nm:'绿'},
+  {bg:'rgba(59,130,246,.30)',bd:'#3b82f6',tx:'#3b82f6',nm:'蓝'}
+];
+// ---- UI ----
+const grid=document.getElementById('grid'),holder=document.getElementById('holder'),
+  scene=document.getElementById('scene'),info=document.getElementById('info'),
+  legend=document.getElementById('legend'),hlBox=document.getElementById('hlBox');
+let curNet=0,pairColor,pairs,curP=0,rotx=-24,roty=32,raf=null;
+const labels=['1-4-1','1-4-1','1-4-1','1-4-1','2-3-1','1-4-1','2-3-1','2-2-2','2-2-2','1-4-1','2-3-1'];
+
+nets.forEach((net,i)=>{
+  const el=document.createElement('div');el.className='net-item';
+  const mr=Math.max(...net.map(c=>c[0])),mc=Math.max(...net.map(c=>c[1]));
+  let rects='';net.forEach(([r,c])=>rects+=`<rect x="${c*S+4}" y="${r*S+4}" width="${S}" height="${S}" rx="2"/>`);
+  el.innerHTML=`<svg viewBox="0 0 ${mc*S+S+8} ${mr*S+S+8}">${rects}</svg><div class="label">第${i+1}种</div>`;
+  el.onclick=()=>selectNet(i);
+  grid.appendChild(el);
+});
+
+function selectNet(i){
+  cancelAnimationFrame(raf);curNet=i;curP=0;
+  const op=oppositePairs(nets[i]);pairColor=op.pairColor;pairs=op.pairs;
+  document.querySelectorAll('.net-item').forEach((e,j)=>e.classList.toggle('active',j===i));
+  holder.innerHTML='';
+  nets[i].forEach((c,fi)=>{
+    const d=document.createElement('div');d.className='face';d.dataset.fi=fi;d.textContent=fi+1;
+    d.onmouseenter=()=>{const p=pairColor[fi];
+      [...holder.children].forEach(f=>{if(pairColor[+f.dataset.fi]===p)f.classList.add('glow');});};
+    d.onmouseleave=()=>[...holder.children].forEach(f=>f.classList.remove('glow'));
+    holder.appendChild(d);
+  });
+  info.innerHTML=`<span class="tag">第 ${i+1} / 11 种</span>　类型 ${labels[i]}`;
+  legend.innerHTML='';
+  pairs.forEach((pr,k)=>{
+    const it=document.createElement('div');it.className='item';
+    it.innerHTML=`<span class="swatch" style="background:${PAIR[k].bg};border-color:${PAIR[k].bd}"></span>${PAIR[k].nm}：面 ${pr[0]} ↔ ${pr[1]}`;
+    legend.appendChild(it);
+  });
+  render(0);
+}
+function render(p){
+  curP=p;
+  const fr=fold(nets[curNet],p);
+  const hl=hlBox.checked;
+  for(const f of holder.children){
+    const fi=+f.dataset.fi;const[M,T]=fr[nets[curNet][fi].join(',')];
+    f.style.transform=`translate3d(${-S/2}px,${-S/2}px,${-S/2}px) ${mat3d(M,T)}`;
+    if(hl){const col=PAIR[pairColor[fi]];
+      f.style.background=col.bg;f.style.borderColor=col.bd;f.style.color=col.tx;f.style.opacity='.9';}
+    else{f.style.background='var(--accent)';f.style.borderColor='var(--accent)';f.style.color='var(--foreground)';f.style.opacity='.28';}
+  }
+  holder.style.transform=`rotateX(${rotx}deg) rotateY(${roty}deg)`;
+}
+function ease(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+function tween(target,dur,done){
+  cancelAnimationFrame(raf);
+  const from=curP,t0=performance.now();
+  (function loop(now){let t=(now-t0)/dur;if(t>1)t=1;
+    render(from+(target-from)*ease(t));
+    if(t<1)raf=requestAnimationFrame(loop);else if(done)done();})(t0);
+}
+document.getElementById('btnPlay').onclick=()=>tween(1,2400,()=>setTimeout(()=>{if(curP===1)tween(0,1500);},800));
+document.getElementById('btnFold').onclick=()=>tween(1,1800);
+document.getElementById('btnUnfold').onclick=()=>tween(0,1800);
+document.getElementById('btnReset').onclick=()=>{cancelAnimationFrame(raf);rotx=-24;roty=32;render(0);};
+hlBox.onchange=()=>render(curP);
+let drag=null;
+scene.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,rx:rotx,ry:roty};scene.setPointerCapture(e.pointerId);});
+scene.addEventListener('pointermove',e=>{if(!drag)return;
+  roty=drag.ry+(e.clientX-drag.x)*.5;rotx=drag.rx-(e.clientY-drag.y)*.5;
+  rotx=Math.max(-89,Math.min(89,rotx));render(curP);});
+scene.addEventListener('pointerup',()=>drag=null);
+selectNet(0);
+</script>
+</body>
+</html>
