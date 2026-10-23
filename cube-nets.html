@@ -2,59 +2,124 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>正方体 11 种展开图 · 折叠动画</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>正方体展开图 · 11 种</title>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--card); color:var(--foreground); font-family:system-ui,"Microsoft YaHei",sans-serif; padding:16px; }
-h2 { font-size:16px; margin-bottom:4px; }
-.sub { font-size:12px; color:var(--muted-foreground); margin-bottom:12px; line-height:1.6; }
-.grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; max-width:520px; }
-.net-item { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:6px; cursor:pointer; text-align:center; transition:.15s; }
-.net-item:hover { border-color:var(--accent); }
-.net-item.active { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent); }
-.net-item svg { width:100%; height:54px; }
-.net-item rect { fill:var(--card); stroke:var(--border); stroke-width:1.5; rx:2; }
-.net-item.active rect { fill:var(--accent); opacity:.18; }
-.net-item .label { font-size:10px; color:var(--muted-foreground); margin-top:2px; }
-.stage { margin-top:16px; display:flex; align-items:flex-start; gap:20px; flex-wrap:wrap; }
-.scene { width:240px; height:240px; position:relative; perspective:760px; touch-action:none; cursor:grab; flex-shrink:0;
-  background:var(--card); border:1px solid var(--border); border-radius:10px; }
-.scene:active { cursor:grabbing; }
-.holder { position:absolute; left:50%; top:50%; width:0; height:0; transform-style:preserve-3d; }
-.face { position:absolute; width:60px; height:60px; left:0; top:0; border:2px solid var(--accent);
-  background:var(--accent); opacity:.16; display:flex; align-items:center; justify-content:center;
-  font-size:14px; font-weight:700; color:var(--foreground); backface-visibility:visible;
-  transition:filter .15s; }
-.face.glow { filter:brightness(1.5); border-width:3px; z-index:5; }
-.controls { flex:1; min-width:240px; }
-.controls button { background:var(--accent); color:var(--card); border:none; border-radius:6px; padding:8px 14px; font-size:13px; cursor:pointer; margin:0 8px 8px 0; }
-.controls button:disabled { opacity:.4; cursor:default; }
-.controls button.secondary { background:var(--border); color:var(--foreground); }
-.hl-toggle { display:inline-flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; user-select:none; margin-bottom:10px; }
-.info { font-size:12px; color:var(--muted-foreground); line-height:1.7; margin-top:6px; }
-.tag { display:inline-block; background:var(--border); border-radius:4px; padding:1px 7px; font-size:11px; }
-.legend { margin-top:10px; display:flex; gap:14px; flex-wrap:wrap; }
-.legend .item { display:flex; align-items:center; gap:6px; font-size:12px; }
-.legend .swatch { width:14px; height:14px; border-radius:3px; border:2px solid; }
+:root{
+  --bg0:#070b16; --bg1:#0d1426; --panel:rgba(255,255,255,.045);
+  --stroke:rgba(140,170,230,.16); --text:#e9f0ff; --muted:#8fa4c8;
+  --accent:#6aa6ff; --accent2:#9a7bff;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  color:var(--text);overflow:hidden;
+  background:
+    radial-gradient(60vw 50vh at 15% 0%, rgba(106,166,255,.18), transparent 70%),
+    radial-gradient(55vw 45vh at 100% 10%, rgba(154,123,255,.16), transparent 70%),
+    radial-gradient(70vw 60vh at 50% 110%, rgba(61,220,151,.10), transparent 70%),
+    linear-gradient(180deg,var(--bg0),var(--bg1));
+  display:flex;justify-content:center;
+}
+.app{width:100%;max-width:1020px;height:100dvh;display:flex;flex-direction:column;padding:14px 16px calc(10px + env(safe-area-inset-bottom))}
+
+/* 顶栏 */
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:4px 2px 6px}
+.brand{display:flex;align-items:baseline;gap:8px;font-size:18px;font-weight:800;letter-spacing:.5px}
+.brand small{font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0}
+.progress{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.progress b{color:var(--text);font-size:16px}
+.badge{font-size:11px;font-weight:700;color:#bcd2ff;background:rgba(106,166,255,.16);
+  border:1px solid rgba(106,166,255,.35);border-radius:999px;padding:3px 9px;letter-spacing:.4px}
+
+/* 舞台 */
+.stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-height:0}
+.scene{width:min(84vw,360px);height:min(84vw,360px);max-height:100%;position:relative;
+  perspective:900px;touch-action:none;cursor:grab;display:flex;align-items:center;justify-content:center}
+.scene:active{cursor:grabbing}
+.holder{position:absolute;left:50%;top:50%;width:0;height:0;transform-style:preserve-3d;will-change:transform}
+.face{position:absolute;width:60px;height:60px;left:0;top:0;border-radius:9px;
+  border:1.5px solid rgba(255,255,255,.5);box-shadow:inset 0 0 22px rgba(255,255,255,.14),0 0 16px rgba(0,0,0,.35);
+  transition:opacity .18s;backface-visibility:visible}
+.face.dim{opacity:.12}
+
+/* 缩略图条 */
+.strip{display:flex;gap:10px;overflow-x:auto;padding:10px 2px 12px;scroll-snap-type:x mandatory;
+  scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.thumb{flex:0 0 auto;width:66px;height:66px;border-radius:14px;scroll-snap-align:center;
+  background:var(--panel);border:1px solid var(--stroke);cursor:pointer;position:relative;
+  display:flex;align-items:center;justify-content:center;transition:.18s;padding:6px}
+.thumb:hover{border-color:rgba(140,170,230,.4);transform:translateY(-2px)}
+.thumb.active{border-color:var(--accent);background:rgba(106,166,255,.12);
+  box-shadow:0 0 0 2px rgba(106,166,255,.35),0 6px 18px rgba(106,166,255,.25)}
+.thumb svg{width:100%;height:100%;display:block;overflow:visible}
+.thumb rect{fill:rgba(150,180,255,.10);stroke:rgba(150,180,255,.55);stroke-width:1.6;rx:2}
+.thumb.active rect{fill:rgba(106,166,255,.28);stroke:var(--accent)}
+.thumb .idx{position:absolute;right:4px;bottom:2px;font-size:9px;color:var(--muted);font-weight:700}
+.thumb.active .idx{color:var(--accent)}
+
+/* 控制条 */
+footer{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:center;padding:4px 0 2px}
+.btn{border:none;border-radius:12px;padding:11px 18px;font-size:14px;font-weight:700;font-family:inherit;
+  cursor:pointer;transition:transform .1s,filter .15s;color:#08101f;
+  background:linear-gradient(135deg,#9cc2ff,#6aa6ff);box-shadow:0 6px 16px rgba(106,166,255,.28)}
+.btn:active{transform:translateY(2px)}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--stroke);box-shadow:none}
+.btn.ghost:hover{border-color:rgba(140,170,230,.45)}
+.btn.ghost:disabled{opacity:.35;cursor:default}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none;
+  background:var(--panel);border:1px solid var(--stroke);border-radius:12px;padding:9px 13px}
+.switch input{display:none}
+.knob{width:34px;height:19px;border-radius:999px;background:rgba(140,170,230,.22);position:relative;transition:.2s}
+.knob::after{content:"";position:absolute;left:2px;top:2px;width:15px;height:15px;border-radius:50%;
+  background:#cfe0ff;transition:.2s}
+.switch input:checked + .knob{background:linear-gradient(135deg,#6aa6ff,#9a7bff)}
+.switch input:checked + .knob::after{left:17px;background:#fff}
+
+/* 图例 */
+.legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;padding:8px 0 2px;min-height:26px;
+  transition:opacity .2s}
+.legend.hide{opacity:0}
+.lg{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.sw{width:15px;height:15px;border-radius:5px;box-shadow:inset 0 0 8px rgba(255,255,255,.25)}
+
+@media (max-height:640px){
+  .scene{width:min(70vw,270px);height:min(70vw,270px)}
+  .thumb{width:56px;height:56px}
+  .btn{padding:9px 14px;font-size:13px}
+}
 </style>
 </head>
 <body>
-<h2>正方体展开图 · 11 种</h2>
-<div class="sub">已用程序枚举全部 6 格多联骨牌(35 种)并验证可折叠者恰好 11 种；折叠计算同样经过程序验证。
-  点缩略图选一种 → 点「播放」看折叠。拖拽 3D 区可旋转，<b>悬停某面</b>会高亮它的相对面。</div>
-<div class="grid" id="grid"></div>
-<div class="stage">
-  <div class="scene" id="scene"><div class="holder" id="holder"></div></div>
-  <div class="controls">
-    <button id="btnPlay">▶ 播放折叠</button>
-    <button id="btnFold" class="secondary">折叠</button>
-    <button id="btnUnfold" class="secondary">展开</button>
-    <button id="btnReset" class="secondary">↺ 复位</button>
-    <label class="hl-toggle"><input type="checkbox" id="hlBox" checked> 高亮相对面（同色=对面）</label>
-    <div class="info" id="info"></div>
-    <div class="legend" id="legend"></div>
+<div class="app">
+  <header>
+    <div class="brand">正方体展开图 <small>11 种</small></div>
+    <div class="progress">第 <b id="cur">1</b> / 11 种 <span class="badge" id="typeBadge">1-4-1</span></div>
+  </header>
+
+  <main class="stage">
+    <div class="scene" id="scene"><div class="holder" id="holder"></div></div>
+  </main>
+
+  <section class="strip" id="strip"></section>
+
+  <footer>
+    <button class="btn ghost" id="btnUnfold">展开</button>
+    <button class="btn" id="btnPlay">▶ 播放折叠</button>
+    <button class="btn ghost" id="btnFold">折叠</button>
+    <label class="switch"><input type="checkbox" id="hlBox" checked><span class="knob"></span>相对面高亮</label>
+  </footer>
+
+  <div class="legend" id="legend">
+    <div class="lg"><span class="sw" style="background:linear-gradient(135deg,#ff7a85,#c23a4a)"></span>一对相对面</div>
+    <div class="lg"><span class="sw" style="background:linear-gradient(135deg,#4fe3a6,#158a5f)"></span>一对相对面</div>
+    <div class="lg"><span class="sw" style="background:linear-gradient(135deg,#6fb6ff,#2b5fd0)"></span>一对相对面</div>
+    <div class="lg" style="color:#a9bcda">折叠后同色两面正好相对</div>
   </div>
 </div>
+
 <script>
 const S=60;
 const nets=[
@@ -70,7 +135,10 @@ const nets=[
   [[0,1],[1,0],[1,1],[1,2],[1,3],[2,1]],
   [[0,1],[1,0],[1,1],[1,2],[1,3],[2,2]],
 ];
-// ---- 3D（与 Python 验证脚本逐行对应）----
+// 程序验证过的类型（6×1-4-1, 3×2-3-1, 1×2-2-2, 1×3-3）
+const TYPES=['1-4-1','3-3','2-3-1','2-3-1','2-3-1','1-4-1','2-2-2','1-4-1','1-4-1','1-4-1','1-4-1'];
+
+/* ---------- 3D 数学（与 Python 验证脚本一致）---------- */
 function matmul(A,B){const R=[[0,0,0],[0,0,0],[0,0,0]];for(let i=0;i<3;i++)for(let j=0;j<3;j++){let v=0;for(let k=0;k<3;k++)v+=A[i][k]*B[k][j];R[i][j]=v;}return R;}
 function matvec(M,v){return [M[0][0]*v[0]+M[0][1]*v[1]+M[0][2]*v[2],M[1][0]*v[0]+M[1][1]*v[1]+M[1][2]*v[2],M[2][0]*v[0]+M[2][1]*v[1]+M[2][2]*v[2]];}
 function add(a,b){return[a[0]+b[0],a[1]+b[1],a[2]+b[2]];}
@@ -102,71 +170,83 @@ function fold(net,p){
 }
 function mat3d(M,T){const m=v=>(+v).toFixed(4);
   return `matrix3d(${m(M[0][0])},${m(M[1][0])},${m(M[2][0])},0,${m(M[0][1])},${m(M[1][1])},${m(M[2][1])},0,${m(M[0][2])},${m(M[1][2])},${m(M[2][2])},0,${m(T[0])},${m(T[1])},${m(T[2])},1)`;}
-// 相对面配对（p=1 时法向量相反的两面）
+
+/* ---------- 相对面配对 ---------- */
 function oppositePairs(net){
   const fr=fold(net,1);
   const ns=net.map((c,fi)=>({fi,n:matvec(fr[c.join(',')][0],[0,0,1]).map(x=>Math.round(x*100)/100)}));
-  const pairColor={};let ci=0;const pairs=[];
+  const pairColor={};let ci=0;
   for(let i=0;i<ns.length;i++){if(pairColor[i]!==undefined)continue;
     const oi=ns.findIndex((o,j)=>j!==i&&o.n[0]===-ns[i].n[0]&&o.n[1]===-ns[i].n[1]&&o.n[2]===-ns[i].n[2]);
-    pairColor[i]=ci;pairColor[oi]=ci;pairs.push([i+1,oi+1]);ci++;}
-  return{pairColor,pairs};
+    pairColor[i]=ci;pairColor[oi]=ci;ci++;}
+  return pairColor;
 }
 const PAIR=[
-  {bg:'rgba(229,72,77,.28)',bd:'#e5484d',tx:'#e5484d',nm:'红'},
-  {bg:'rgba(48,164,108,.30)',bd:'#30a46c',tx:'#30a46c',nm:'绿'},
-  {bg:'rgba(59,130,246,.30)',bd:'#3b82f6',tx:'#3b82f6',nm:'蓝'}
+  {g:'linear-gradient(135deg,#ff7a85,#c23a4a)',b:'rgba(255,150,160,.9)'},
+  {g:'linear-gradient(135deg,#4fe3a6,#158a5f)',b:'rgba(120,240,190,.9)'},
+  {g:'linear-gradient(135deg,#6fb6ff,#2b5fd0)',b:'rgba(150,200,255,.95)'},
 ];
-// ---- UI ----
-const grid=document.getElementById('grid'),holder=document.getElementById('holder'),
-  scene=document.getElementById('scene'),info=document.getElementById('info'),
-  legend=document.getElementById('legend'),hlBox=document.getElementById('hlBox');
-let curNet=0,pairColor,pairs,curP=0,rotx=-24,roty=32,raf=null;
-const labels=['1-4-1','1-4-1','1-4-1','1-4-1','2-3-1','1-4-1','2-3-1','2-2-2','2-2-2','1-4-1','2-3-1'];
+const PLAIN={g:'linear-gradient(135deg,#7aa7ff,#3f6fd8)',b:'rgba(150,190,255,.75)'};
 
+/* ---------- UI ---------- */
+const holder=document.getElementById('holder'), scene=document.getElementById('scene'),
+  strip=document.getElementById('strip'), legend=document.getElementById('legend'),
+  hlBox=document.getElementById('hlBox'), curEl=document.getElementById('cur'),
+  typeBadge=document.getElementById('typeBadge');
+let curNet=0,pairColor,curP=0,rotx=-22,roty=30,raf=null;
+
+// 缩略图
 nets.forEach((net,i)=>{
-  const el=document.createElement('div');el.className='net-item';
+  const el=document.createElement('button');el.className='thumb';
   const mr=Math.max(...net.map(c=>c[0])),mc=Math.max(...net.map(c=>c[1]));
-  let rects='';net.forEach(([r,c])=>rects+=`<rect x="${c*S+4}" y="${r*S+4}" width="${S}" height="${S}" rx="2"/>`);
-  el.innerHTML=`<svg viewBox="0 0 ${mc*S+S+8} ${mr*S+S+8}">${rects}</svg><div class="label">第${i+1}种</div>`;
+  let rects='';net.forEach(([r,c])=>{rects+=`<rect x="${c*S+3}" y="${r*S+3}" width="${S}" height="${S}"/>`;});
+  el.innerHTML=`<svg viewBox="0 0 ${mc*S+S+6} ${mr*S+S+6}">${rects}</svg><span class="idx">${i+1}</span>`;
+  el.title='第'+(i+1)+'种 · '+TYPES[i];
   el.onclick=()=>selectNet(i);
-  grid.appendChild(el);
+  strip.appendChild(el);
 });
 
 function selectNet(i){
-  cancelAnimationFrame(raf);curNet=i;curP=0;
-  const op=oppositePairs(nets[i]);pairColor=op.pairColor;pairs=op.pairs;
-  document.querySelectorAll('.net-item').forEach((e,j)=>e.classList.toggle('active',j===i));
+  cancelAnimationFrame(raf);
+  curNet=i;curP=0;
+  pairColor=oppositePairs(nets[i]);
+  [...strip.children].forEach((e,j)=>e.classList.toggle('active',j===i));
   holder.innerHTML='';
   nets[i].forEach((c,fi)=>{
-    const d=document.createElement('div');d.className='face';d.dataset.fi=fi;d.textContent=fi+1;
-    d.onmouseenter=()=>{const p=pairColor[fi];
-      [...holder.children].forEach(f=>{if(pairColor[+f.dataset.fi]===p)f.classList.add('glow');});};
-    d.onmouseleave=()=>[...holder.children].forEach(f=>f.classList.remove('glow'));
+    const d=document.createElement('div');d.className='face';d.dataset.fi=fi;
+    d.addEventListener('mouseenter',()=>{
+      const p=pairColor[fi];
+      [...holder.children].forEach(f=>f.classList.toggle('dim',pairColor[+f.dataset.fi]!==p));
+    });
+    d.addEventListener('mouseleave',()=>[...holder.children].forEach(f=>f.classList.remove('dim')));
     holder.appendChild(d);
   });
-  info.innerHTML=`<span class="tag">第 ${i+1} / 11 种</span>　类型 ${labels[i]}`;
-  legend.innerHTML='';
-  pairs.forEach((pr,k)=>{
-    const it=document.createElement('div');it.className='item';
-    it.innerHTML=`<span class="swatch" style="background:${PAIR[k].bg};border-color:${PAIR[k].bd}"></span>${PAIR[k].nm}：面 ${pr[0]} ↔ ${pr[1]}`;
-    legend.appendChild(it);
-  });
+  curEl.textContent=i+1;
+  typeBadge.textContent=TYPES[i];
   render(0);
+  // 让缩略图滚到可见
+  const th=strip.children[i];
+  if(th&&typeof th.scrollIntoView==='function'){th.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});}
 }
+
 function render(p){
   curP=p;
   const fr=fold(nets[curNet],p);
   const hl=hlBox.checked;
+  const scale=1+1.15*p;   // 折叠时放大，保持视觉大小
   for(const f of holder.children){
     const fi=+f.dataset.fi;const[M,T]=fr[nets[curNet][fi].join(',')];
     f.style.transform=`translate3d(${-S/2}px,${-S/2}px,${-S/2}px) ${mat3d(M,T)}`;
-    if(hl){const col=PAIR[pairColor[fi]];
-      f.style.background=col.bg;f.style.borderColor=col.bd;f.style.color=col.tx;f.style.opacity='.9';}
-    else{f.style.background='var(--accent)';f.style.borderColor='var(--accent)';f.style.color='var(--foreground)';f.style.opacity='.28';}
+    const c=hl?PAIR[pairColor[fi]]:PLAIN;
+    f.style.background=c.g;
+    f.style.borderColor=hl?c.b:'rgba(150,190,255,.5)';
+    f.style.opacity=hl?'0.92':'0.4';
   }
-  holder.style.transform=`rotateX(${rotx}deg) rotateY(${roty}deg)`;
+  holder.style.transform=`rotateX(${rotx}deg) rotateY(${roty}deg) scale(${scale})`;
+  legend.classList.toggle('hide',!hl);
 }
+
+/* ---------- 动画 ---------- */
 function ease(t){return t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
 function tween(target,dur,done){
   cancelAnimationFrame(raf);
@@ -175,17 +255,22 @@ function tween(target,dur,done){
     render(from+(target-from)*ease(t));
     if(t<1)raf=requestAnimationFrame(loop);else if(done)done();})(t0);
 }
-document.getElementById('btnPlay').onclick=()=>tween(1,2400,()=>setTimeout(()=>{if(curP===1)tween(0,1500);},800));
-document.getElementById('btnFold').onclick=()=>tween(1,1800);
-document.getElementById('btnUnfold').onclick=()=>tween(0,1800);
-document.getElementById('btnReset').onclick=()=>{cancelAnimationFrame(raf);rotx=-24;roty=32;render(0);};
+document.getElementById('btnFold').onclick=()=>tween(1,1600);
+document.getElementById('btnUnfold').onclick=()=>tween(0,1400);
+document.getElementById('btnPlay').onclick=()=>tween(1,2200,()=>{
+  setTimeout(()=>{ if(curP===1) tween(0,1500); },900);
+});
 hlBox.onchange=()=>render(curP);
+
+/* ---------- 拖拽旋转 ---------- */
 let drag=null;
 scene.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,rx:rotx,ry:roty};scene.setPointerCapture(e.pointerId);});
 scene.addEventListener('pointermove',e=>{if(!drag)return;
   roty=drag.ry+(e.clientX-drag.x)*.5;rotx=drag.rx-(e.clientY-drag.y)*.5;
   rotx=Math.max(-89,Math.min(89,rotx));render(curP);});
 scene.addEventListener('pointerup',()=>drag=null);
+scene.addEventListener('pointercancel',()=>drag=null);
+
 selectNet(0);
 </script>
 </body>
