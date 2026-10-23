@@ -46,6 +46,12 @@ body{
 .spider-btn.happy .leg{animation:legwave .5s ease 2}
 @keyframes legwave{0%,100%{transform:rotate(0)}50%{transform:rotate(9deg)}}
 .hint{font-size:14px;color:#5b7a94;margin-top:6px;opacity:.9;text-align:center}
+.hint .ph{display:block;font-size:12px;color:#7d97b3;margin-top:2px}
+.tts-tip{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,14px);
+  max-width:88vw;background:#26324c;color:#fff;font-size:13px;line-height:1.55;padding:11px 16px;border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:.25s;z-index:60;text-align:center}
+.tts-tip.show{opacity:1;transform:translate(-50%,0)}
+.tts-tip b{color:#ffd76a}
 
 .bottombar{width:100%;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:14px 14px 24px;z-index:5}
 .btn{border:none;border-radius:16px;padding:14px 20px;font-size:15px;font-weight:800;font-family:inherit;
@@ -117,7 +123,10 @@ body{
       <path d="M92 100 Q100 108 108 100" stroke="#2b2038" stroke-width="3.5" fill="none" stroke-linecap="round"/>
     </svg>
   </button>
-  <div class="hint">👆 点蜘蛛 → 听它说 <b>spider</b>　·　首次点击后开始有声音</div>
+  <div class="hint">👆 点蜘蛛 → 听它说 <b>spider</b>　·　首次点击后开始有声音
+    <span class="ph">读音 /ˈspaɪdər/ ≈「斯-派-德」</span>
+  </div>
+  <div class="tts-tip" id="ttsTip">没听到朗读？先确认右上角 🔊 没静音；若这里是<b>微信 / QQ 内打开的</b>页面，请点右上角「…」选择在 <b>Safari / Chrome</b> 中打开。</div>
 </div>
 
 <div class="bottombar">
@@ -215,18 +224,59 @@ body{
   }
   $('#muteBtn').addEventListener('click',()=>{ initAudio(); setMuted(!muted); });
 
-  /* ================= 语音 ================= */
-  function speak(text,{rate=0.8,pitch=1.15}={}){
-    if(!('speechSynthesis' in window)) return;
-    try{
-      speechSynthesis.cancel();
-      const u=new SpeechSynthesisUtterance(text);
-      u.lang='en-US'; u.rate=rate; u.pitch=pitch; u.volume=1;
-      const vs=speechSynthesis.getVoices();
-      const en=vs.find(v=>/en-US/i.test(v.lang)&&/female|samantha|zira|google/i.test(v.name))||vs.find(v=>/en/i.test(v.lang));
-      if(en) u.voice=en;
-      speechSynthesis.speak(u);
-    }catch(e){}
+  /* ================= 语音（兼容 iOS / Android） ================= */
+  const TTS_SUPPORTED = ('speechSynthesis' in window) && ('SpeechSynthesisUtterance' in window);
+  let voices = [], voiceWarned = false;
+  function refreshVoices(){
+    if(!TTS_SUPPORTED) return;
+    try{ voices = speechSynthesis.getVoices() || []; }catch(e){ voices = []; }
+  }
+  if(TTS_SUPPORTED){ refreshVoices(); speechSynthesis.onvoiceschanged = refreshVoices; }
+
+  function pickEnVoice(){
+    if(!voices.length) refreshVoices();
+    if(!voices.length) return null;
+    const en = voices.filter(v => /^en([-_]|$)/i.test(v.lang));
+    return en.find(v => /en[-_]US/i.test(v.lang) && /samantha|zira|aria|jenny|google|female/i.test(v.name))
+        || en.find(v => /en[-_]US/i.test(v.lang))
+        || en[0] || null;
+  }
+  // 说话时压低背景音乐，避免盖住人声
+  function duck(on){
+    if(ac && musicGain){ try{ musicGain.gain.setTargetAtTime(on ? 0.06 : 1, ac.currentTime, 0.04); }catch(e){ musicGain.gain.value = on ? 0.06 : 1; } }
+  }
+  function speak(text,{rate=0.85,pitch=1.06}={}){
+    if(!TTS_SUPPORTED){ showTtsTip(); return; }
+    try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){}
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'en-US'; u.rate = rate; u.pitch = pitch; u.volume = 1;
+    const v = pickEnVoice(); if(v) u.voice = v;
+    let started = false;
+    u.onstart = () => { started = true; duck(true); };
+    u.onend = () => duck(false);
+    u.onerror = () => { duck(false); showTtsTip(); };
+    const busy = speechSynthesis.speaking || speechSynthesis.pending;
+    if(busy){
+      // 先 cancel 再立即 speak 会被 iOS 吞掉 —— 必须隔开一个 tick
+      try{ speechSynthesis.cancel(); }catch(e){}
+      setTimeout(() => { try{ speechSynthesis.speak(u); }catch(e){} }, 90);
+    }else{
+      // 首次必须在用户手势内同步调用，否则 iOS 不解锁
+      try{ speechSynthesis.speak(u); }catch(e){}
+    }
+    // 静默失败检测：800ms 内没开始 -> 提示
+    setTimeout(() => { if(!started) showTtsTip(); }, 800);
+  }
+  let tipShown = false;
+  function showTtsTip(){
+    if(tipShown) return; tipShown = true;
+    const el = document.getElementById('ttsTip');
+    if(el) el.classList.add('show');
+    setTimeout(() => { tipShown = false; }, 6000);
+  }
+  // 启动检测：不支持 TTS，或处在微信/QQ 等内置浏览器
+  if(!TTS_SUPPORTED || /MicroMessenger|QQ\/|Weibo|DingTalk|AlipayClient|baiduboxapp/i.test(navigator.userAgent||'')){
+    setTimeout(showTtsTip, 1000);
   }
 
   /* ================= 星星 / 特效 ================= */
